@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AWS
+
+  Sample SAM Template for AWS
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 800
+    #Environment:
+    #  Variables:
+    #    FOO: value
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues:
+      - local
+      - dev
+      - staging
+      - prod
+    Default: local
+
+Mappings:
+  EnvMap:
+    local:
+      EnvName: 'LOCAL'
+      Queue1Name: 'queue1-local'
+      Queue2Name: 'queue2-local'
+    dev:
+      EnvName: 'DEV'
+      Queue1Name: 'queue1-dev'
+      Queue2Name: 'queue2-dev'
+    staging:
+      EnvName: 'STAGING'
+      Queue1Name: 'queue1-staging'
+      Queue2Name: 'queue2-staging'
+    prod:
+      EnvName: 'PROD'
+      Queue1Name: 'queue1-prod'
+      Queue2Name: 'queue2-prod'
+
+Resources:
+  queue1:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !FindInMap [ EnvMap, !Ref Env, Queue1Name ]
+      ReceiveMessageWaitTimeSeconds: 20
+      VisibilityTimeout: 800
+  queue2:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !FindInMap [ EnvMap, !Ref Env, Queue2Name ]
+      ReceiveMessageWaitTimeSeconds: 20
+      VisibilityTimeout: 800
+
+  Lambda1Function:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: lambda1/target/scala-2.13/aws-sam-sqs-scala-lambda1-assembly-0.1.jar
+      Handler: lambda1.Handler::handleRequest
+      Runtime: java11
+      MemorySize: 512
+      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+        Variables:
+          DEPLOY_ENV: !FindInMap [ EnvMap, !Ref Env, EnvName ]
+      Events:
+        Lamnbda1:
+          Type: SQS
+          Properties:
+            BatchSize: 1
+            Queue: !GetAtt queue1.Arn
+  Lambda2Function:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: lambda2/target/scala-2.13/aws-sam-sqs-scala-lambda2-assembly-0.1.jar
+      Handler: lambda2.Handler::handleRequest
+      Runtime: java11
+      MemorySize: 512
+      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+        Variables:
+          DEPLOY_ENV: !FindInMap [ EnvMap, !Ref Env, EnvName ]
+      Events:
+        Lamnbda1:
+          Type: SQS
+          Properties:
+            BatchSize: 1
+            Queue: !GetAtt queue1.Arn
+
+Outputs:
+  Lambda1Function:
+    Description: "Lambda1 Function ARN"
+    Value: !GetAtt Lambda1Function.Arn
+  Lambda1FunctionIamRole:
+    Description: "Implicit IAM Role created for Lambda1 function"
+    Value: !GetAtt Lambda1FunctionIamRole.Arn
+  Lambda2Function:
+    Description: "Lambda2 Function ARN"
+    Value: !GetAtt Lambda2Function.Arn
+  Lambda2FunctionIamRole:
+    Description: "Implicit IAM Role created for Lambda2 function"
+    Value: !GetAtt Lambda2FunctionIamRole.Arn
